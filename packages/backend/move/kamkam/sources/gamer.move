@@ -4,6 +4,8 @@ use std::string::{String};
 use sui::table::{Self, Table};
 use kamkam::game::{Game};
 
+const EcontentCreatedFailed: u64 = 0;
+
 public struct Gamer has key {
     id: UID,
     name: String,
@@ -32,15 +34,19 @@ public entry fun register_gamer(name: String, ctx: &mut TxContext) {
     transfer::transfer(gamer, ctx.sender());
 }
 
-public entry fun create_content(game_id: ID, content_type: u8, content_hash: String, rating: u8, ctx: &mut TxContext) {
+public entry fun create_content(gamer: &mut Gamer, game: &Game, content_type: u8, content_hash: String, rating: u8, ctx: &mut TxContext) {
+    let sender = ctx.sender();
+    assert!(object::uid_to_address(&gamer.id) == sender, EcontentCreatedFailed);
+    
+    let game_id = game.get_game_id();
     let content = Content {
-        id: object::new(ctx),x
+        id: object::new(ctx),
         creator: ctx.sender(),
         game_id: game_id,
         content_type: content_type,
         content_hash: content_hash,
         rating: rating,
     };
-    table::set(&mut ctx.state().content, content.id, content);
-    table::set(&mut ctx.state().gamer[&ctx.sender()].created_content, game_id, content.id);
+    table::add(&mut gamer.created_content, game_id, object::uid_to_address(&content.id));
+    transfer::transfer(content, ctx.sender());
 }
